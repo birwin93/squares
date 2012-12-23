@@ -7,13 +7,32 @@
 //
 
 #import "AppDelegate.h"
+#import <Parse/Parse.h>
 
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
     // Override point for customization after application launch.
+    [Parse setApplicationId:@"WD3Y2sS7PsPyoEFTQpW6qaPnfemWLYgDTxy1eK8B"
+                  clientKey:@"lIZvPY5bR7VvItzYHcpxNrWcB4zvVz6u6GHSB9qY"];
+    
+    [application registerForRemoteNotificationTypes:UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeSound];
+    
     return YES;
+}
+
+- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
+{
+    NSLog(@"%@", deviceToken);
+    [PFPush storeDeviceToken:deviceToken];
+    [[PFInstallation currentInstallation] addUniqueObject:@"" forKey:@"channels"];
+    [[PFInstallation currentInstallation] saveEventually];
+}
+
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
+{
+    [PFPush handlePush:userInfo];
 }
 							
 - (void)applicationWillResignActive:(UIApplication *)application

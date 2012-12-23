@@ -7,16 +7,25 @@
 //
 
 #import "ViewController.h"
-
-@interface ViewController ()
-
-@end
+#import "GameViewController.h"
+#import "Game.h"
+#import <Parse/Parse.h>
 
 @implementation ViewController
+@synthesize usernameTF, passwordTF;
 
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:YES];
+    if ([PFUser currentUser]) {
+        [self performSegueWithIdentifier:@"login" sender:self];
+    }
+}
 - (void)viewDidLoad
 {
     [super viewDidLoad];
+    [self.navigationController setNavigationBarHidden:YES];
+
 	// Do any additional setup after loading the view, typically from a nib.
 }
 
@@ -25,5 +34,26 @@
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
 }
+
+- (IBAction)login:(id)sender
+{
+    [PFUser logInWithUsernameInBackground:usernameTF.text password:passwordTF.text block:^(PFUser *user, NSError *error) {
+        if (!error) {
+            [[PFInstallation currentInstallation] addUniqueObject:user.username forKey:@"channels"];
+            [[PFInstallation currentInstallation] saveInBackground];
+            [self performSegueWithIdentifier:@"login" sender:self];
+        } else {
+            UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error" message:@"Incorrect username/password combination" delegate:self cancelButtonTitle:@"ok" otherButtonTitles:nil, nil];
+            [alert show];
+            passwordTF.text = @"";
+        }
+    }];
+}
+
+- (IBAction)signup:(id)sender
+{
+    [self performSegueWithIdentifier:@"signup" sender:self];
+}
+
 
 @end

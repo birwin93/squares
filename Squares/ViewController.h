@@ -7,7 +7,17 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "SmallBoardView.h"
 
 @interface ViewController : UIViewController
+
+
+@property (strong, nonatomic) IBOutlet UITextField *usernameTF;
+@property (strong, nonatomic) IBOutlet UITextField *passwordTF;
+
+- (IBAction)login:(id)sender;
+- (IBAction)signup:(id)sender;
+
+
 
 @end
