@@ -9,6 +9,7 @@
 #import "MenuViewController.h"
 #import "Game.h"
 #import "GameViewController.h"
+#import "LocalGameViewController.h"
 #import <Parse/Parse.h>
 
 
@@ -23,7 +24,7 @@
 @synthesize gamesTableView;
 @synthesize usernameTextField;
 @synthesize createGameView;
-
+@synthesize chosenGame;
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
 {
@@ -76,6 +77,12 @@
             [newGame setObject:[NSNumber numberWithBool:YES] forKey:@"newGame"];
             [newGame setObject:[NSNumber numberWithInt:0] forKey:@"lastMove"];
             [newGame saveInBackground];
+            
+            chosenGame = newGame;
+            
+            [self performSegueWithIdentifier:@"playGame" sender:self];
+            
+            
         
         } else {
             UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil
@@ -102,22 +109,16 @@
     [self loadGames];
 }
 
-- (IBAction)logout:(id)sender
-{
-    [PFUser logOut];
-    [self.navigationController popToRootViewControllerAnimated:YES];
-}
 
 - (void)viewWillAppear:(BOOL)animated
 {
+    [super viewWillAppear:YES];
    
     [self.navigationController setNavigationBarHidden:NO];
     UIBarButtonItem *addButton = [[UIBarButtonItem alloc] initWithTitle:@"New" style:UIBarButtonItemStyleBordered target:self action:@selector(addGame:)];
     self.navigationItem.rightBarButtonItem = addButton;
     
-    UIBarButtonItem *logoutButton = [[UIBarButtonItem alloc] initWithTitle:@"Logout" style:UIBarButtonItemStyleBordered target:self action:@selector(logout:)];
-    self.navigationItem.leftBarButtonItem = logoutButton;
-    
+       
     [self loadGames];
 }
 
@@ -229,36 +230,85 @@
     }
 }
 
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 70;
+}
+
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     static NSString *CellIdentifier = @"gameCell";
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
-    UILabel *label = (UILabel *)[cell viewWithTag:1];
+    
+    UIImage* bg = [UIImage imageNamed:@"ipad-list-element.png"];
+    UIImage* disclosureImage = [UIImage imageNamed:@"ipad-arrow.png"];
+    
+    UILabel *nameLabel = (UILabel *)[cell viewWithTag:1];
+    UILabel *dateLabel = (UILabel *)[cell viewWithTag:2];
+    
+    [cell.backgroundView setBackgroundColor:[UIColor colorWithPatternImage:bg]];
+   
+    [nameLabel setTextColor:[UIColor colorWithRed:0.0 green:68.0/255 blue:118.0/255 alpha:1.0]];
+    [nameLabel setShadowColor:[UIColor whiteColor]];
+    [nameLabel setShadowOffset:CGSizeMake(0, 1)];
+    
+    
+    [dateLabel setTextColor:[UIColor colorWithRed:113.0/255 green:133.0/255 blue:148.0/255 alpha:1.0]];
+    [dateLabel setShadowColor:[UIColor whiteColor]];
+    [dateLabel setShadowOffset:CGSizeMake(0, 1)];
+    
     
     PFObject *game;
     if (indexPath.section == 0) {
         game = [yourMove objectAtIndex:indexPath.row];
         if ([[game objectForKey:@"player1"] isEqualToString:[PFUser currentUser].username]) {
-            label.text = [game objectForKey:@"player2"];
+            nameLabel.text = [game objectForKey:@"player2"];
         } else {
-            label.text = [game objectForKey:@"player1"];
+            nameLabel.text = [game objectForKey:@"player1"];
         }
     } else if (indexPath.section == 1) {
         game = [opponentsMove objectAtIndex:indexPath.row];
         if ([[game objectForKey:@"player1"] isEqualToString:[PFUser currentUser].username]) {
-            label.text = [game objectForKey:@"player2"];
+            nameLabel.text = [game objectForKey:@"player2"];
         } else {
-            label.text = [game objectForKey:@"player1"];
+            nameLabel.text = [game objectForKey:@"player1"];
         }
     } else {
         game = [finishedGames objectAtIndex:indexPath.row];
         if ([[game objectForKey:@"player1"] isEqualToString:[PFUser currentUser].username]) {
-            label.text = [game objectForKey:@"player2"];
+            nameLabel.text = [game objectForKey:@"player2"];
         } else {
-            label.text = [game objectForKey:@"player1"];
+            nameLabel.text = [game objectForKey:@"player1"];
         }
 
     }
+    
+    NSDate *now = [NSDate date];
+    
+    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+    NSDateComponents *components = [calendar components:NSDayCalendarUnit|NSHourCalendarUnit|NSMinuteCalendarUnit
+                                               fromDate:[game objectForKey:@"lastMoveDate"]
+                                                 toDate:now
+                                                options:0];
+    
+    NSInteger day = [components day];
+    NSInteger hour = [components hour];
+    NSInteger minute = [components minute];
+    
+    NSString *moveDate;
+    if (day == 0) {
+        if (hour == 0) {
+            moveDate = [NSString stringWithFormat:@"Last move was %i minutes ago", minute];
+        } else {
+            moveDate = [NSString stringWithFormat:@"Last move was %i hours ago", hour];
+        }
+    } else {
+        moveDate = [NSString stringWithFormat:@"Last move was %i days ago", day];
+    }
+    
+    NSLog(@"%i %i %i", day, hour, minute);
+    
+    dateLabel.text = moveDate;
     
     // Configure the cell...
     
@@ -308,23 +358,31 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
+    if (indexPath.section == 0) {
+        chosenGame = [yourMove objectAtIndex:indexPath.row];
+    } else if (indexPath.section == 1) {
+        chosenGame = [opponentsMove objectAtIndex:indexPath.row];
+    }
+    
     [self performSegueWithIdentifier:@"playGame" sender:self];
 }
 
+
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
-    GameViewController *g = [segue destinationViewController];
-    NSIndexPath *selectedGame = [gamesTableView indexPathForSelectedRow];
-    PFObject *game;
-    if (selectedGame.section == 0) {
-        game = [yourMove objectAtIndex:selectedGame.row];
-    } else if (selectedGame.section == 1) {
-        game = [opponentsMove objectAtIndex:selectedGame.row];
+    if ([segue.identifier isEqualToString:@"playGame"]) {
+        GameViewController *g = [segue destinationViewController];
+        g.game = chosenGame;
+        
     } else {
-        game = [finishedGames objectAtIndex:selectedGame.row];
+        Game *game = [[Game alloc] init];
+        game.player1 = @"player1";
+        game.player2 = @"player2";
+        game.currentPlayer = game.player1;
+        
+        
     }
     
-    g.game = game;
 }
 
 

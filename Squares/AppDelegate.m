@@ -9,6 +9,40 @@
 #import "AppDelegate.h"
 #import <Parse/Parse.h>
 
+@implementation UIImage (iPhone5)
+
++ (BOOL)isTall {
+    if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone
+        && [UIScreen mainScreen].bounds.size.height == 568)
+    {
+        return YES;
+    }
+    return NO;
+}
+
++ (UIImage *)tallImageNamed:(NSString *)name {
+    
+    UIImage *image;
+    if ([self isTall]) {
+        NSString *fileName = [[[NSFileManager defaultManager] displayNameAtPath:name] stringByDeletingPathExtension];
+        NSString *extension = [name pathExtension];
+        
+        NSString *nameTall = [NSString stringWithFormat:@"%@-568h", fileName];
+        if (extension) {
+            nameTall = [nameTall stringByAppendingFormat:@".%@", extension];
+        }
+        image = [UIImage imageNamed:nameTall];
+    }
+    
+    if (!image) {
+        image = [UIImage imageNamed:name];
+    }
+    
+    return image;
+}
+
+@end
+
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
@@ -17,7 +51,25 @@
     [Parse setApplicationId:@"WD3Y2sS7PsPyoEFTQpW6qaPnfemWLYgDTxy1eK8B"
                   clientKey:@"lIZvPY5bR7VvItzYHcpxNrWcB4zvVz6u6GHSB9qY"];
     
+    [PFFacebookUtils initializeWithApplicationId:@"508719839167695"];
+    
     [application registerForRemoteNotificationTypes:UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeSound];
+    
+    UIImage *navBarImage = [[UIImage tallImageNamed:@"menubar.png"] resizableImageWithCapInsets:UIEdgeInsetsMake(5, 15, 5, 15)];
+    
+    [[UINavigationBar appearance] setBackgroundImage:navBarImage forBarMetrics:UIBarMetricsDefault];
+    
+    
+    UIImage *barButton = [[UIImage tallImageNamed:@"menubar-button.png"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
+    
+    [[UIBarButtonItem appearance] setBackgroundImage:barButton forState:UIControlStateNormal
+                                          barMetrics:UIBarMetricsDefault];
+    
+    UIImage *backButton = [[UIImage tallImageNamed:@"back.png"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 14, 0, 4)];
+    
+    [[UIBarButtonItem appearance] setBackButtonBackgroundImage:backButton forState:UIControlStateNormal
+                                                    barMetrics:UIBarMetricsDefault];
+
     
     return YES;
 }
@@ -34,7 +86,16 @@
 {
     [PFPush handlePush:userInfo];
 }
-							
+
+- (BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url {
+    return [PFFacebookUtils handleOpenURL:url];
+}
+
+- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url
+  sourceApplication:(NSString *)sourceApplication annotation:(id)annotation {
+    return [PFFacebookUtils handleOpenURL:url];
+}
+
 - (void)applicationWillResignActive:(UIApplication *)application
 {
     // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.

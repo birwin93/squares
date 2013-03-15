@@ -16,6 +16,13 @@
 @synthesize board;
 @synthesize game;
 @synthesize shrinkButton;
+@synthesize messageView;
+@synthesize keyboardIsShowing;
+@synthesize messageTextField;
+@synthesize messageLabel;
+@synthesize displayMessageView;
+@synthesize attachMessageButton;
+@synthesize messageCancelButton;
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
 {
@@ -26,11 +33,92 @@
     return self;
 }
 
+- (void)viewDidAppear:(BOOL)animated
+{
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+    keyboardIsShowing = false;
+    
+    if (![[game objectForKey:@"currentPlayer"] isEqualToString:[self getOpponent]]) {
+        if ([[game objectForKey:@"isMessage"] boolValue] == true) {
+            messageLabel.text = [game objectForKey:@"gameMessage"];
+            [UIView beginAnimations:nil context:NULL];
+            [UIView setAnimationDuration:0.5];
+            [self.view bringSubviewToFront:displayMessageView];
+            [UIView commitAnimations];
+        }
+    }
+    
+    
+}
+
+- (void)keyboardWillShow:(NSNotification *)note
+{
+    [self.view bringSubviewToFront:messageView];
+    NSLog(@"keyboard appearing doe");
+     NSLog(@"%f", messageView.frame.origin.y);
+    
+    CGRect frame = messageView.frame;
+    frame.origin.y -= 210;
+        
+    [UIView beginAnimations:nil context:NULL];
+    //[UIView setAnimationBeginsFromCurrentState:YES];
+    [UIView setAnimationDuration:0.2f];
+    messageView.frame = frame;
+    [messageCancelButton setHidden:false];
+    [attachMessageButton setHidden:false];
+    [UIView commitAnimations];
+    NSLog(@"%f", messageView.frame.origin.y);
+    
+}
+
+- (void)keyboardWillHide:(NSNotification *)note
+{
+  
+        CGRect frame = messageView.frame;
+        frame.origin.y += 210;
+        
+        [UIView beginAnimations:nil context:NULL];
+        [UIView setAnimationBeginsFromCurrentState:YES];
+        [UIView setAnimationDuration:0.3f];
+        messageView.frame = frame;
+        [messageCancelButton setHidden:true];
+        [attachMessageButton setHidden:true];
+        [UIView commitAnimations];
+        
+ 
+}
+
+- (NSString *)getOpponent
+{
+    if ([[game objectForKey:@"player1"] isEqualToString:[PFUser currentUser].username]) {
+        return [game objectForKey:@"player2"];
+    } else {
+        return [game objectForKey:@"player1"];
+    }
+}
+
+- (void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:YES];
+    
+    [messageCancelButton setHidden:true];
+    [attachMessageButton setHidden:true];
+    self.navigationItem.title = [self getOpponent];
+    
+    NSLog(@"%@", [self getOpponent]);
+    
+    
+}
+
 - (void)viewDidLoad
 {
     [super viewDidLoad];
     [self setUpGame];
-    shrinkButton.titleLabel.text = @"";
+    
+    self.view.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"ipad-BG-pattern.png"]];
+    
+    [shrinkButton setTitle:@"" forState:UIControlStateNormal];
 	// Do any additional setup after loading the view.
 }
 
@@ -40,24 +128,40 @@
     // Dispose of any resources that can be recreated.
 }
 
+- (IBAction)cancelAttachMessage:(id)sender
+{
+    [messageTextField resignFirstResponder];
+    
+    messageTextField.text = @"";
+
+}
+
 - (IBAction)enlarge:(UIButton *)sender
 {
+    // first check if square is the next valid square
     int location = [[game objectForKey:@"lastMove"] intValue];
     if (![[game objectForKey:@"freeMove"] boolValue] && sender.tag != location % 10) {
         return;
     }
     
+    // then check if square is already filled
     int full = [[[[game objectForKey:@"boardData"]  objectAtIndex:9] objectAtIndex:sender.tag] intValue];
     if (full) {
         return;
     }
     
+    // make sure only current player can affect board
     NSString *currentPlayer = [game objectForKey:@"currentPlayer"];
     if (![currentPlayer isEqualToString:[PFUser currentUser].username]) {
         return;
     }
     
-   
+    // finally check if game is finished
+    if ([[game objectForKey:@"done"] boolValue]) {
+        return;
+    }
+    
+    //enlarge the square
     [board enlargeSquare:sender.tag];
     [shrinkButton setTitle:@"Click here to shrink" forState:UIControlStateNormal];
 }
@@ -65,12 +169,14 @@
 
 - (IBAction)changeVal:(UIButton *)sender
 {
+    // make sure player can't change a square that already contains a value
     int input = [[[[game objectForKey:@"boardData"] objectAtIndex:board.enlargedView.tag] objectAtIndex:sender.tag] intValue];
     
     if (input == 1 || input == 2) {
         return;
     }
     
+    // input the correct value
     NSString *nameHolder = [game objectForKey:@"currentPlayer"];
     
     if ([nameHolder isEqualToString:[game objectForKey:@"player1"]]) {
@@ -85,44 +191,86 @@
 
     [board updateBoard:board.enlargedView.tag square:sender.tag player:input];
     
+    [self sendMessage:input andName:nameHolder];
+    
+    // check if next move is a free move
     if ([[[[game objectForKey:@"boardData"] objectAtIndex:9] objectAtIndex:sender.tag] intValue] != 0) {
         [game setObject:[NSNumber numberWithBool:YES] forKey:@"freeMove"];
     } else {
         [game setObject:[NSNumber numberWithBool:NO] forKey:@"freeMove"];
     }
     
-    [self checkLargeBoard];
-    
+    // set lastMove
     int largeSquare = board.enlargedView.tag;
     int smallSquare = sender.tag;
     int lastMove = largeSquare*10 + smallSquare;
     
     [board shrinkSquare];
-    [board highlightSquares:[[game objectForKey:@"freeMove"] boolValue] boardVals:[[game objectForKey:@"boardData"] objectAtIndex:9] lastMove:lastMove];
-    
+    [board highlightSquares:[[game objectForKey:@"freeMove"] boolValue]
+                  boardVals:[[game objectForKey:@"boardData"] objectAtIndex:9]
+                   lastMove:lastMove];
     [game setObject:[NSNumber numberWithInt:lastMove] forKey:@"lastMove"];
+    
+    [game setObject:[NSDate date] forKey:@"lastMoveDate"];
+    
     [game saveInBackground];
-    
-    
-    NSString *message = [NSString stringWithFormat:@"Your move against %@", nameHolder];
-    [PFPush sendPushMessageToChannelInBackground:[game objectForKey:@"currentPlayer"] withMessage:message];
-    
+
 }
 
-- (void)checkLargeBoard
+- (void)sendMessage:(int)input andName:(NSString *)nameHolder
+{
+    NSString *message = [NSString stringWithFormat:@"Your move against %@", nameHolder];
+    int result = [self checkLargeBoard];
+    if (result != 0) {
+        int finalResult = [self checkForAWin:[[game objectForKey:@"boardData"] objectAtIndex:9]];
+        if (finalResult == 1) {
+            [game setObject:[NSNumber numberWithBool:YES] forKey:@"done"];
+            if (input == 1) {
+                message = [NSString stringWithFormat:@"You lost to %@", [game objectForKey:@"player1"]];
+            } else {
+                message = [NSString stringWithFormat:@"You won!"];
+            }
+        } else if (finalResult == 2) {
+            [game setObject:[NSNumber numberWithBool:YES] forKey:@"done"];
+            if (input == 2) {
+                message = [NSString stringWithFormat:@"You lost to %@", [game objectForKey:@"player2"]];
+            } else {
+                message = [NSString stringWithFormat:@"You won!"];
+            }
+        } else if (finalResult == 3) {
+            [game setObject:[NSNumber numberWithBool:YES] forKey:@"done"];
+            message = [NSString stringWithFormat:@"Game is a draw"];
+        }
+    }
+    
+    if ([[game objectForKey:@"newGame"] boolValue] == true) {
+        message = [NSString stringWithFormat:@"%@ wants to play a game with you", nameHolder];
+        [game setObject:[NSNumber numberWithBool:false] forKey:@"newGame"];
+    }
+    
+    [PFPush sendPushMessageToChannelInBackground:[game objectForKey:@"currentPlayer"] withMessage:message];
+}
+
+- (int)checkLargeBoard
 {
     int result = [self checkForAWin:[[game objectForKey:@"boardData"] objectAtIndex:board.enlargedView.tag]];
     if (result == 1) {
         [board updateCover:board.enlargedView.tag player:1];
         [[[game objectForKey:@"boardData"] objectAtIndex:9] replaceObjectAtIndex:board.enlargedView.tag withObject:[NSNumber numberWithInt:1]];
+        return 1;
     } else if (result == 2) {
         [board updateCover:board.enlargedView.tag player:2];
         [[[game objectForKey:@"boardData"] objectAtIndex:9] replaceObjectAtIndex:board.enlargedView.tag withObject:[NSNumber numberWithInt:2]];
+        return 2;
     } else if (result == 3) {
         [board updateCover:board.enlargedView.tag player:3];
         [[[game objectForKey:@"boardData"] objectAtIndex:9] replaceObjectAtIndex:board.enlargedView.tag withObject:[NSNumber numberWithInt:3]];
+        return 3;
     }
-
+    
+    [self displayWinMessage];
+    
+    return 0;
 }
 
 
@@ -158,7 +306,7 @@
         int a = 0;
         for (UIButton *button in view.squares) {
             button.tag = a;
-            [button setImage:[UIImage imageNamed:@"large_blank.png"] forState:UIControlStateNormal];
+            [button setImage:[UIImage imageNamed:@"blankSquare.png"] forState:UIControlStateNormal];
             [button addTarget:self action:@selector(changeVal:) forControlEvents:UIControlEventTouchUpInside];
             [board updateBoard:s square:a player:[[[[game objectForKey:@"boardData"] objectAtIndex:s] objectAtIndex:a] intValue]];
             a++;
@@ -188,6 +336,38 @@
                   boardVals:[[game objectForKey:@"boardData"] objectAtIndex:9]
                    lastMove:[[game objectForKey:@"lastMove"] intValue]];
     
+    [self displayWinMessage];
+    
+}
+
+- (void)displayWinMessage
+{
+    if ([[game objectForKey:@"done"] boolValue] == true) {
+        // find out who won and display to player
+        NSString *currentPlayer = [game objectForKey:@"currentPlayer"];
+        NSString *gameMessage;
+        int result = [self checkForAWin:[[game objectForKey:@"boardData"] objectAtIndex:9]];
+        if (result == 1) {
+            if ([currentPlayer isEqualToString:[game objectForKey:@"player1"]]) {
+                gameMessage = [NSString stringWithFormat:@"You won"];
+            } else {
+                gameMessage = [NSString stringWithFormat:@"%@ won", [game objectForKey:@"player2"]];
+            }
+        } else if (result == 2) {
+            if ([currentPlayer isEqualToString:[game objectForKey:@"player2"]]) {
+                gameMessage = [NSString stringWithFormat:@"You won"];
+            } else {
+                gameMessage = [NSString stringWithFormat:@"%@ won", [game objectForKey:@"player1"]];
+            }
+        } else {
+            gameMessage = [NSString stringWithFormat:@"Draw"];
+        }
+        
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil message:gameMessage delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil, nil];
+        
+        [alert show];
+    }
+
 }
 
 
@@ -248,6 +428,36 @@
 {
     [board shrinkSquare];
     [shrinkButton setTitle:@"" forState:UIControlStateNormal];
+}
+
+
+- (IBAction)attachMessage:(id)sender
+{
+    [game setObject:messageTextField.text forKey:@"gameMessage"];
+    [game setObject:[NSNumber numberWithBool:YES] forKey:@"isMessage"];
+    [messageTextField resignFirstResponder];
+    
+    messageTextField.text = @"";
+}
+
+- (IBAction)closeMessage:(id)sender
+{
+    [game setObject:[NSNumber numberWithBool:NO] forKey:@"isMessage"];
+    [UIView beginAnimations:nil context:NULL];
+    [UIView setAnimationDuration:0.5];
+    [self.view sendSubviewToBack:displayMessageView];
+    [UIView commitAnimations];
+    
+    [game saveInBackground];
+}
+
+- (void)viewDidUnload {
+    [self setMessageTextField:nil];
+    [self setDisplayMessageView:nil];
+    [self setMessageLabel:nil];
+    [self setMessageCancelButton:nil];
+    [self setAttachMessageButton:nil];
+    [super viewDidUnload];
 }
 @end
 

@@ -12,6 +12,7 @@
 @synthesize boardVals, lastMove, currentPlayer;
 @synthesize player1, player2;
 @synthesize freeMove;
+@synthesize done;
 
 - (id)init {
     self = [super init];
@@ -29,8 +30,10 @@
         player1 = [[NSString alloc] init];
         player2 = [[NSString alloc] init];
         lastMove = 999;
+        freeMove = true;
+        done = false;
+        
     }
-    freeMove = true;
     return self;
 }
 

@@ -17,6 +17,7 @@
 @property (strong, nonatomic) NSString *player2;
 @property (nonatomic) int lastMove;
 @property (nonatomic) bool freeMove;
+@property (nonatomic) bool done;
 
 
 

@@ -20,10 +20,15 @@
     if ([PFUser currentUser]) {
         [self performSegueWithIdentifier:@"login" sender:self];
     }
+    
+    [self.navigationController setNavigationBarHidden:YES];
 }
 - (void)viewDidLoad
 {
     [super viewDidLoad];
+    
+    self.view.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"ipad-BG-pattern.png"]];
+    
     [self.navigationController setNavigationBarHidden:YES];
 
 	// Do any additional setup after loading the view, typically from a nib.

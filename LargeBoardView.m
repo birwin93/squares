@@ -92,15 +92,15 @@
     
     switch (player) {
         case 0:
-            [selectedSquare setImage:[UIImage imageNamed:@"large_blank.png"]
+            [selectedSquare setImage:[UIImage imageNamed:@"blankSquare.png"]
                             forState:UIControlStateNormal];
             break;
         case 1:
-            [selectedSquare setImage:[UIImage imageNamed:@"large_x.png"]
+            [selectedSquare setImage:[UIImage imageNamed:@"xSquare.png"]
                             forState:UIControlStateNormal];
             break;
         case 2:
-            [selectedSquare setImage:[UIImage imageNamed:@"large_o.png"]
+            [selectedSquare setImage:[UIImage imageNamed:@"oSquare.png"]
                             forState:UIControlStateNormal];
             break;
         default:
@@ -116,15 +116,15 @@
     
     switch (player) {
         case 1:
-            [s.coverView setBackgroundImage:[UIImage imageNamed:@"large_x.png"]
+            [s.coverView setBackgroundImage:[UIImage imageNamed:@"xSquare.png"]
                                       forState:UIControlStateNormal];
             break;
         case 2:
-            [s.coverView setBackgroundImage:[UIImage imageNamed:@"large_o.png"]
+            [s.coverView setBackgroundImage:[UIImage imageNamed:@"oSquare.png"]
                                       forState:UIControlStateNormal];
             break;
         case 3:
-            [s.coverView setBackgroundImage:[UIImage imageNamed:@"large_blank.png"]
+            [s.coverView setBackgroundImage:[UIImage imageNamed:@"blankSquare.png"]
                                       forState:UIControlStateNormal];
             break;
         default:
